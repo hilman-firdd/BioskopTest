@@ -116,6 +116,14 @@
         .credits a {
             color: #fff;
         }
+
+        .modal-dialog {
+            position: fixed;
+            bottom: 0;
+            left: 0%;
+            right: 0%;
+            transform: translate(-50%, -50%);
+        }
     </style>
 </head>
 @php
@@ -148,8 +156,8 @@
             <div class="col-md-6">
                 <div class="d-flex justify-content-center">
                     <div class="input-group mb-3">
-                        <input type="text" class="form-control" placeholder="Cari Film" aria-label="Recipient's username"
-                            aria-describedby="button-addon2">
+                        <input type="text" class="form-control" placeholder="Cari Film"
+                            aria-label="Recipient's username" aria-describedby="button-addon2">
                         <button class="btn btn-danger" type="button" id="button-addon2">Cari</button>
                     </div>
                 </div>
