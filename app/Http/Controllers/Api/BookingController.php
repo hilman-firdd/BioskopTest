@@ -10,11 +10,22 @@ use Illuminate\Support\Facades\Validator;
 
 class BookingController extends BaseController
 {
-    public function loadFilm()
+    public function loadFilm(Request $req)
     {
+        $validator = Validator::make($req->all(), [
+            'search' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->sendError($validator->errors()->first(), 400);
+        }
+
         $film = Film::select('id_film', 'nama_film', 'harga_tiket', 'jam_tayang', 'film_image')
             ->where('jam_tayang', '>=', now())
             ->where('jam_tayang', '<', now()->addDays(7))
+            ->when($req->search, function ($query, $search) {
+                return $query->where('nama_film', 'like', "%{$search}%");
+            })
             ->orderBy('jam_tayang', 'asc')->get();
 
         $film->map(function ($item) {
@@ -25,7 +36,7 @@ class BookingController extends BaseController
         return $this->sendResponse($film);
     }
 
-    public function listKursi(Request $req)
+    public function detailFilm(Request $req)
     {
         $validator = Validator::make($req->all(), [
             'id_film' => 'required|exists:films,id_film',
@@ -47,7 +58,17 @@ class BookingController extends BaseController
         }
         $nomorDuduk = array_map('trim', $nomorDuduk);
 
-        return $this->sendResponse($nomorDuduk);
+        $data = [
+            'id_film' => $film->id_film,
+            'nama_film' => $film->nama_film,
+            'harga_tiket' => $film->harga_tiket,
+            'tgl_tayang' => date('d M Y', strtotime($film->jam_tayang)),
+            'jam_tayang' => date('H:i', strtotime($film->jam_tayang)),
+            'film_image' => $film->film_image,
+            'nomor_duduk' => $nomorDuduk,
+        ];
+
+        return $this->sendResponse($data);
     }
 
     public function createOrder(Request $req)
