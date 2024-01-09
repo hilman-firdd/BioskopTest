@@ -18,3 +18,4 @@ use Illuminate\Support\Facades\Route;
 
 Route::post('/film', [BookingController::class, 'loadFilm']);
 Route::post('/order', [BookingController::class, 'createOrder']);
+Route::post('/order-update', [BookingController::class, 'updateOrder']);

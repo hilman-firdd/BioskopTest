@@ -14,6 +14,7 @@ class BookingController extends BaseController
     {
         $film = Film::select('id_film', 'nama_film', 'harga_tiket', 'jam_tayang', 'film_image')
             ->where('jam_tayang', '>', now())
+            ->where('jam_tayang', '<', now()->addDays(7))
             ->orderBy('jam_tayang', 'asc')->get();
 
         $film->map(function ($item) {
@@ -47,6 +48,7 @@ class BookingController extends BaseController
         foreach ($nomorKursi as $nomor) {
             $cek = Order::where('nomor_duduk', 'like', "%{$nomor}%")
                 ->where('id_film', $req->id_film)
+                ->whereIn('id_status_pembayaran', [1, 2])
                 ->first();
             if ($cek) {
                 return $this->sendError('Nomor duduk ' . $nomor . ' sudah dipesan');
@@ -67,10 +69,54 @@ class BookingController extends BaseController
             DB::rollBack();
             return $this->sendError($e->getMessage());
         }
-        
+
         $data = [
             'order_id' => $order->id,
             'nama_film' => $order->film->nama_film,
+        ];
+
+        return $this->sendResponse($data);
+    }
+
+    public function updateOrder(Request $req)
+    {
+        $validator = Validator::make($req->all(), [
+            'id_order' => 'required|exists:orders,id_order',
+            'status_pembayaran' => 'required|int|in:2,3',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->sendError($validator->errors()->first());
+        }
+
+        if ($req->status_pembayaran == 2) {
+            $cek = Order::where('id_order', $req->id_order)->first();
+            if ($cek->id_status_pembayaran == 2) {
+                return $this->sendError('Order sudah dibayar');
+            } else if ($cek->id_status_pembayaran == 3) {
+                return $this->sendError('Order sudah dibatalkan');
+            }
+        } else {
+            $cek = Order::where('id_order', $req->id_order)->first();
+            if ($cek->id_status_pembayaran == 3) {
+                return $this->sendError('Order sudah dibatalkan');
+            }
+        }
+        
+        try {
+            DB::beginTransaction();
+            Order::where('id_order', $req->id_order)->update([
+                'id_status_pembayaran' => $req->status_pembayaran,
+            ]);
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return $this->sendError($e->getMessage());
+        }
+        $order = Order::where('id_order', $req->id_order)->first();
+        $data = [
+            'order_id' => $order->id_order,
+            'status_pembayaran' => $order->payment_status->deskripsi,
         ];
 
         return $this->sendResponse($data);
