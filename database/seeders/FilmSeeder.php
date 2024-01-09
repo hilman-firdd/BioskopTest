@@ -17,7 +17,7 @@ class FilmSeeder extends Seeder
             $film = new \App\Models\Film();
             $film->nama_film = $faker->name;
             $film->harga_tiket = $faker->numberBetween(10000, 50000);
-            $film->jam_tayang = $faker->dateTimeBetween('-1 years', '+1 years');
+            $film->jam_tayang = $faker->dateTimeBetween('-1 week', '+2 week');
             $film->film_image = $faker->imageUrl(400, 600, 'animals', true);
             $film->save();
         }

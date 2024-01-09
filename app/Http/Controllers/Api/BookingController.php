@@ -13,7 +13,7 @@ class BookingController extends BaseController
     public function loadFilm()
     {
         $film = Film::select('id_film', 'nama_film', 'harga_tiket', 'jam_tayang', 'film_image')
-            ->where('jam_tayang', '>', now())
+            ->where('jam_tayang', '>=', now())
             ->where('jam_tayang', '<', now()->addDays(7))
             ->orderBy('jam_tayang', 'asc')->get();
 
@@ -25,6 +25,31 @@ class BookingController extends BaseController
         return $this->sendResponse($film);
     }
 
+    public function listKursi(Request $req)
+    {
+        $validator = Validator::make($req->all(), [
+            'id_film' => 'required|exists:films,id_film',
+        ]);
+
+        if ($validator->fails()) {
+            return $this->sendError($validator->errors()->first(), 400);
+        }
+
+        $film = Film::Where('id_film', $req->id_film)->first();
+        if (!$film) {
+            return $this->sendError('Film tidak ditemukan', 404);
+        }
+
+        $order = Order::select('nomor_duduk')->where('id_film', $req->id_film)->whereIn('id_status_pembayaran', [1, 2])->get();
+        $nomorDuduk = [];
+        foreach ($order as $item) {
+            $nomorDuduk = array_merge($nomorDuduk, explode(',', $item->nomor_duduk));
+        }
+        $nomorDuduk = array_map('trim', $nomorDuduk);
+
+        return $this->sendResponse($nomorDuduk);
+    }
+
     public function createOrder(Request $req)
     {
         $validator = Validator::make($req->all(), [
@@ -34,12 +59,12 @@ class BookingController extends BaseController
         ]);
 
         if ($validator->fails()) {
-            return $this->sendError($validator->errors()->first());
+            return $this->sendError($validator->errors()->first(), 400);
         }
 
-        $film = Film::Where('id_film', $req->id_film)->first();
+        $film = Film::Where('id_film', $req->id_film)->where('jam_tayang', '>=', now())->first();
         if (!$film) {
-            return $this->sendError('Film tidak ditemukan');
+            return $this->sendError('Film tidak ditemukan', 404);
         }
 
         $nomorKursi = explode(',', $req->nomor_duduk);
@@ -51,7 +76,7 @@ class BookingController extends BaseController
                 ->whereIn('id_status_pembayaran', [1, 2])
                 ->first();
             if ($cek) {
-                return $this->sendError('Nomor duduk ' . $nomor . ' sudah dipesan');
+                return $this->sendError('Nomor duduk ' . $nomor . ' sudah dipesan', 400);
             }
         }
 
@@ -67,7 +92,7 @@ class BookingController extends BaseController
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->sendError($e->getMessage());
+            return $this->sendError("Terjadi Kesalahan Server", 500);
         }
 
         $data = [
@@ -86,20 +111,20 @@ class BookingController extends BaseController
         ]);
 
         if ($validator->fails()) {
-            return $this->sendError($validator->errors()->first());
+            return $this->sendError($validator->errors()->first(), 400);
         }
 
         if ($req->status_pembayaran == 2) {
             $cek = Order::where('id_order', $req->id_order)->first();
             if ($cek->id_status_pembayaran == 2) {
-                return $this->sendError('Order sudah dibayar');
+                return $this->sendError('Order sudah dibayar', 400);
             } else if ($cek->id_status_pembayaran == 3) {
-                return $this->sendError('Order sudah dibatalkan');
+                return $this->sendError('Order sudah dibatalkan', 400);
             }
         } else {
             $cek = Order::where('id_order', $req->id_order)->first();
             if ($cek->id_status_pembayaran == 3) {
-                return $this->sendError('Order sudah dibatalkan');
+                return $this->sendError('Order sudah dibatalkan', 400);
             }
         }
         
@@ -111,7 +136,7 @@ class BookingController extends BaseController
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
-            return $this->sendError($e->getMessage());
+            return $this->sendError("Terjadi Kesalahan Server", 500);
         }
         $order = Order::where('id_order', $req->id_order)->first();
         $data = [
