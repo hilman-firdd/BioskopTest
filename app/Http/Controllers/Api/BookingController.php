@@ -189,6 +189,7 @@ class BookingController extends BaseController
             ->select('orders.*', 'films.*')
             ->where('id_status_pembayaran', '=', 2)
             ->where('user_id', '=', $idUser)
+            ->where('jam_tayang', '>=', now())
             ->orderBy('orders.created_at', 'desc')->get();
 
         if (!$orderPaid->isEmpty()) {
