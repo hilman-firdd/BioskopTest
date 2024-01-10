@@ -14,9 +14,3 @@ use Illuminate\Support\Facades\Route;
 | be assigned to the "api" middleware group. Make something great!
 |
 */
-
-
-Route::post('/film', [BookingController::class, 'loadFilm']);
-Route::post('/order', [BookingController::class, 'createOrder']);
-Route::post('/order-update', [BookingController::class, 'updateOrder']);
-Route::post('/film-detail', [BookingController::class, 'detailFilm']);

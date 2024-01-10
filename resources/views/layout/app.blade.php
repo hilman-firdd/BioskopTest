@@ -8,9 +8,14 @@
     <link rel="shortcut icon" href="/icon.png" type="image/png">
     <link href="/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="/css/custom.css">
+    @stack('styles')
 </head>
 <body>
-    @include('layout.navbar')
+    @guest
+        <br class="my-5">
+    @else
+        @include('layout.navbar')
+    @endguest
     <div class="container mt-5">
         @yield('content')
     </div>

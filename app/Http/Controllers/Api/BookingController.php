@@ -90,7 +90,7 @@ class BookingController extends BaseController
 
         $nomorKursi = explode(',', $req->nomor_duduk);
         $nomorKursi = array_map('trim', $nomorKursi);
-        
+
         foreach ($nomorKursi as $nomor) {
             $cek = Order::where('nomor_duduk', 'like', "%{$nomor}%")
                 ->where('id_film', $req->id_film)
@@ -108,7 +108,7 @@ class BookingController extends BaseController
             $order->id_film = $req->id_film;
             $order->id_status_pembayaran = $req->id_status_pembayaran;
             $order->nomor_duduk = $req->nomor_duduk;
-
+            $order->user_id = auth()->user()->id;
             $order->save();
             DB::commit();
         } catch (\Exception $e) {
@@ -135,20 +135,20 @@ class BookingController extends BaseController
             return $this->sendError($validator->errors()->first(), 400);
         }
 
-        if ($req->status_pembayaran == 2) {
-            $cek = Order::where('id_order', $req->id_order)->first();
-            if ($cek->id_status_pembayaran == 2) {
-                return $this->sendError('Order sudah dibayar', 400);
-            } else if ($cek->id_status_pembayaran == 3) {
-                return $this->sendError('Order sudah dibatalkan', 400);
-            }
-        } else {
-            $cek = Order::where('id_order', $req->id_order)->first();
-            if ($cek->id_status_pembayaran == 3) {
-                return $this->sendError('Order sudah dibatalkan', 400);
-            }
+        $cek = Order::where('id_order', $req->id_order)->first();
+        
+        if ($cek->user_id != auth()->user()->id) {
+            return $this->sendError('Order tidak ditemukan', 404);
         }
         
+        if ($cek->id_status_pembayaran == 2) {
+            return $this->sendError('Order sudah dibayar', 400);
+        }
+
+        if ($cek->id_status_pembayaran == 3) {
+            return $this->sendError('Order sudah dibatalkan', 400);
+        }
+
         try {
             DB::beginTransaction();
             Order::where('id_order', $req->id_order)->update([
@@ -166,5 +166,43 @@ class BookingController extends BaseController
         ];
 
         return $this->sendResponse($data);
+    }
+
+    public function listOrder()
+    {
+        $idUser = auth()->user()->id;
+        $orderUnpaid = Order::join('films', 'orders.id_film', '=', 'films.id_film')
+            ->select('orders.*', 'films.*')
+            ->where('id_status_pembayaran', '=', 1)
+            ->where('user_id', '=', $idUser)
+            ->orderBy('orders.created_at', 'desc')->get();
+
+        
+        if (!$orderUnpaid->isEmpty()) {
+            $orderUnpaid->map(function ($item) {
+                $item->jam_tayang = date('d M Y H:i', strtotime($item->jam_tayang));
+                return $item;
+            });
+        }
+
+        $orderPaid = Order::join('films', 'orders.id_film', '=', 'films.id_film')
+            ->select('orders.*', 'films.*')
+            ->where('id_status_pembayaran', '=', 2)
+            ->where('user_id', '=', $idUser)
+            ->orderBy('orders.created_at', 'desc')->get();
+
+        if (!$orderPaid->isEmpty()) {
+            $orderPaid->map(function ($item) {
+                $item->jam_tayang = date('d M Y H:i', strtotime($item->jam_tayang));
+                return $item;
+            });
+        }
+
+        $order = [
+            'unpaid' => $orderUnpaid,
+            'paid' => $orderPaid,
+        ];
+
+        return $this->sendResponse($order);
     }
 }
